@@ -2,7 +2,7 @@ const mysql = require("mysql2");
 const inquirer = require("inquirer");
 const cTable = require('console.table');
 const express = require('express');
-const { response } = require("express");
+const { response, query } = require("express");
 
 const PORT = process.env.PORT || 3001;
 const app = express();
@@ -42,9 +42,8 @@ function initialPrompt() {
                 addDepart();
                 break
             case 'Add a role':
-
+                addRole();
                 break;
-
             case 'Add an employee':
 
                 break;
@@ -105,6 +104,53 @@ const addDepart = () => {
 });
 }
 
+const addRole = () => {
+    const departments = [];
+    db.query("SELECT * FROM DEPARTMENT", (err, res) => {
+        if(err) throw err;
+        
+        res.forEach(dep => {
+            let roleQuestions = {
+                name: dep.name,
+                value: dep.id
+            }
+            departments.push(roleQuestions);
+        });
+
+        //questions for getting a new role
+        let questions = [
+            {
+                type: 'input',
+                message: 'What is the new role that you would like to add?',
+                name: 'title'
+            },
+            {
+                type: 'input',
+                message: 'What is the salary of the new role?',
+                name: 'salary'
+            },
+            {
+                type: 'list',
+                message: 'which department is this role in?',
+                choices: departments,
+                name: 'department'
+            }
+        ];
+        
+        inquirer.prompt(questions)
+        .then(response => {
+            const sqlResponse = `INSERT INTO ROLE (title, salary, department_id) VALUES (?)`;
+            db.query(sqlResponse, [[response.title, response.salary, response.department]], (err, res) => {
+                if (err) throw err;
+                console.log('Added new role!');
+                initialPrompt();
+            })
+        })
+        .catch(err => {
+            console.error(err);
+        });
+    });
+}
 
 
 initialPrompt();
