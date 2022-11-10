@@ -3,6 +3,7 @@ const inquirer = require("inquirer");
 const cTable = require('console.table');
 const express = require('express');
 const { response, query } = require("express");
+const e = require("express");
 
 const PORT = process.env.PORT || 3001;
 const app = express();
@@ -45,13 +46,11 @@ function initialPrompt() {
                 addRole();
                 break;
             case 'Add an employee':
-
+                newEmp();
                 break;
-
             case 'Update an employee role':
-
+            updateRole();
                 break;
-
             default:
                 db.end();
         }
@@ -152,7 +151,105 @@ const addRole = () => {
     });
 }
 
+const newEmp = () => {
+    db.query("SELECT * FROM EMPLOYEE", (err, res) => {
+        if (err) throw err;
 
+        const roleChoice = [];
+        res.forEach(({title, id}) => {
+            roleChoice.push({
+                name: title,
+                value: id
+            });
+        });
+        let empQuestions = [
+            {
+                type: 'input',
+                message: 'What is the new employees first name?',
+                name: 'first_name'
+            },
+            {
+                type: 'input',
+                message: 'What is the new employees last name?',
+                name: 'last_name'
+            },
+            {
+                type: 'list',
+                message: 'What is the new employees role?',
+                choices: roleChoice,
+                name: 'role_id'
+            } 
+        ]
+        inquirer.prompt(empQuestions)
+        .then(response => {
+            const sqlResponse = `INSERT INTO EMPLOYEE (first_name, last_name, role_id) VALUES (?)`;
+            db.query(sqlResponse, [[response.first_name, response.last_name, response.role_id]], (err, res) => {
+                if (err) throw err;
+                console.log("Added new employee!");
+            });
+        })
+        .catch(err => {
+            console.error(err);
+        });
+    });
+}
+
+const updateRole = () => {
+    db.query("SELECT * FROM EMPLOYEE", (err, res) => {
+        if (err) throw err;
+        const empChoice = [];
+        res.forEach(({first_name, last_name, id}) => {
+            empChoice.push({
+                name: first_name + " " + last_name,
+                value: id
+            });
+        });
+        
+        db.query("SELECT * FROM ROLE", (err, res) => {
+            if(err) throw err;
+            const roleChoice = [];
+            res.forEach(({title, id}) => {
+                roleChoice.push({
+                    name: title,
+                    value: id
+                });
+            });
+
+            let questions = [
+                {
+                    type: "list",
+                    name: "id",
+                    choices: empChoice,
+                    message: 'Which employee role do you want to update?'
+                },
+                {
+                    type: 'list',
+                    name: "role_id",
+                    choices: roleChoice,
+                    message: "What is new role you would like to assign?"
+                }
+            ]
+
+            inquirer.prompt(questions)
+            .then(response => {
+                const sqlResponse = `UPDATE EMPLOYEE SET ? WHERE ?? = ?;`;
+                db.query(sqlResponse, [
+                    {role_id: response.role_id},
+                    "id",
+                    response.id
+                ], (err, res) => {
+                    if(err) throw err;
+                    console.log("Updated employees role!");
+                    initialPrompt();
+                });
+            })
+            .catch(err => {
+                console.error(err);
+            });
+        })
+    });
+}
+ 
 initialPrompt();
 
 // Allows my app to listen at the specified PORT.
